@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Quality Index Search | Real-Time AQI Tracker</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(59, 130, 246, 0.1);
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* AQI Color Coding */
+        .aqi-good { color: #22c55e; }
+        .aqi-moderate { color: #eab308; }
+        .aqi-sensitive { color: #f97316; }
+        .aqi-unhealthy { color: #ef4444; }
+        .aqi-very-unhealthy { color: #991b1b; }
+        .aqi-hazardous { color: #7c2d12; }
+        
+        .bg-aqi-good { background-color: #dcfce7; }
+        .bg-aqi-moderate { background-color: #fef08a; }
+        .bg-aqi-sensitive { background-color: #fed7aa; }
+        .bg-aqi-unhealthy { background-color: #fee2e2; }
+        .bg-aqi-very-unhealthy { background-color: #fecaca; }
+        .bg-aqi-hazardous { background-color: #fed7aa; }
+        
+        /* Smooth transitions */
+        .transition-all {
+            transition: all 0.3s ease;
+        }
+        
+        /* Card hover effect */
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Badge styling */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .badge-cached {
+            background-color: #e0f2fe;
+            color: #0369a1;
+        }
+        
+        .badge-live {
+            background-color: #f0fdf4;
+            color: #166534;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-2xl">
+        
+        <!-- Header -->
+        <div class="text-center mb-12">
+            <h1 class="text-5xl font-bold text-gray-900 mb-3">AQI Search Engine</h1>
+            <p class="text-lg text-gray-600">Real-time Air Quality Index for any city worldwide</p>
+            <p class="text-sm text-gray-500 mt-2">Powered by WAQI API • Cached for performance</p>
+        </div>
+        
+        <!-- Search Section -->
+        <div class="bg-white rounded-2xl shadow-lg p-8 mb-8 card-hover">
+            <div class="flex flex-col sm:flex-row gap-4">
+                <input
+                    type="text"
+                    id="cityInput"
+                    placeholder="Enter city name (e.g., New York, Delhi, London)"
+                    class="flex-1 px-6 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors text-gray-700"
+                    autocomplete="off"
+                />
+                <button
+                    id="searchBtn"
+                    onclick="searchCity()"
+                    class="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
+                >
+                    Search
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 mt-3">Press Enter or click Search to find AQI data</p>
+        </div>
+        
+        <!-- Loading State -->
+        <div id="loadingState" class="hidden text-center py-12">
+            <div class="spinner mx-auto mb-4"></div>
+            <p class="text-gray-600 font-medium">Searching for city data...</p>
+        </div>
+        
+        <!-- Error State -->
+        <div id="errorState" class="hidden bg-red-50 border-2 border-red-200 rounded-xl p-6 mb-8">
+            <div class="flex items-start gap-3">
+                <div class="text-red-600 font-bold text-xl mt-1">⚠️</div>
+                <div>
+                    <h3 class="font-semibold text-red-900 mb-1">Error</h3>
+                    <p id="errorMessage" class="text-red-700"></p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results Section -->
+        <div id="resultsContainer" class="hidden space-y-6">
+            
+            <!-- Main AQI Card -->
+            <div id="mainCard" class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                <div id="aqiHeader" class="p-8 text-center">
+                    <p class="text-gray-600 mb-2">Air Quality Index</p>
+                    <div id="aqiValue" class="text-7xl font-bold mb-3"></div>
+                    <p id="cityName" class="text-2xl font-semibold text-gray-800 mb-4"></p>
+                    <p id="healthImplications" class="text-lg font-semibold mb-4"></p>
+                    <div id="cacheStatus" class="flex justify-center gap-2"></div>
+                </div>
+            </div>
+            
+            <!-- Pollutants Details -->
+            <div id="pollutantsContainer" class="hidden">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Pollutant Breakdown</h2>
+                <div id="pollutantsGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+            
+            <!-- Additional Info -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <h3 class="font-semibold text-gray-900 mb-4">Health Guidance</h3>
+                <div id="healthGuidance" class="text-sm text-gray-700 space-y-2"></div>
+            </div>
+            
+            <!-- Timestamp -->
+            <p id="timestamp" class="text-center text-xs text-gray-500"></p>
+        </div>
+        
+        <!-- Empty State -->
+        <div id="emptyState" class="text-center py-16">
+            <div class="text-6xl mb-4">🌍</div>
+            <p class="text-gray-600 text-lg">Search for a city to see its Air Quality Index</p>
+            <p class="text-gray-500 text-sm mt-2">Data is cached for 60 minutes for faster results</p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="mt-16 text-center text-gray-600 text-sm border-t border-gray-300 pt-8">
+            <p>Data provided by <a href="https://waqi.info/" target="_blank" class="text-blue-600 hover:underline font-semibold">World Air Quality Index</a></p>
+            <p class="mt-2">🔄 Data cached for 60 minutes • 📍 Coverage: Worldwide</p>
+        </div>
+    </div>
+    
+    <script>
+        // ==================== CONFIGURATION ====================
+        const API_BASE_URL = 'http://localhost:5000';
+        const API_ENDPOINT = `${API_BASE_URL}/api/aqi/city`;
+        
+        // AQI Health Categories
+        const AQI_CATEGORIES = {
+            0: { label: 'Good', color: 'green', hex: '#22c55e', bg: '#dcfce7', guidance: 'Air quality is satisfactory. No health concerns.' },
+            51: { label: 'Moderate', color: 'yellow', hex: '#eab308', bg: '#fef08a', guidance: 'Air quality is acceptable. People with respiratory conditions should limit prolonged outdoor activities.' },
+            101: { label: 'Unhealthy for Sensitive Groups', color: 'orange', hex: '#f97316', bg: '#fed7aa', guidance: 'Members of sensitive groups may experience health effects. General public is less likely to be affected.' },
+            151: { label: 'Unhealthy', color: 'red', hex: '#ef4444', bg: '#fee2e2', guidance: 'Some health effects on the general population. Sensitive groups experience more serious effects.' },
+            201: { label: 'Very Unhealthy', color: 'dark-red', hex: '#991b1b', bg: '#fecaca', guidance: 'Health alert: The risk of health effects increases for everyone. Limit outdoor activities.' },
+            301: { label: 'Hazardous', color: 'maroon', hex: '#7c2d12', bg: '#fed7aa', guidance: 'Health warning: Everyone should avoid outdoor activities. Stay indoors and keep indoor air clean.' }
+        };
+        
+        // ==================== UTILITY FUNCTIONS ====================
+        
+        function getAQICategory(aqi) {
+            if (aqi === null || aqi === undefined || aqi === 'N/A') return AQI_CATEGORIES[0];
+            
+            const value = typeof aqi === 'string' ? parseInt(aqi) : aqi;
+            if (isNaN(value)) return AQI_CATEGORIES[0];
+            
+            if (value <= 50) return AQI_CATEGORIES[0];
+            if (value <= 100) return AQI_CATEGORIES[51];
+            if (value <= 150) return AQI_CATEGORIES[101];
+            if (value <= 200) return AQI_CATEGORIES[151];
+            if (value <= 300) return AQI_CATEGORIES[201];
+            return AQI_CATEGORIES[301];
+        }
+        
+        function showLoadingState() {
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('errorState').classList.add('hidden');
+            document.getElementById('resultsContainer').classList.add('hidden');
+            document.getElementById('emptyState').classList.add('hidden');
+        }
+        
+        function showErrorState(message) {
+            document.getElementById('errorState').classList.remove('hidden');
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('resultsContainer').classList.add('hidden');
+            document.getElementById('emptyState').classList.add('hidden');
+        }
+        
+        function showResultsState() {
+            document.getElementById('resultsContainer').classList.remove('hidden');
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('errorState').classList.add('hidden');
+            document.getElementById('emptyState').classList.add('hidden');
+        }
+        
+        function showEmptyState() {
+            document.getElementById('emptyState').classList.remove('hidden');
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('errorState').classList.add('hidden');
+            document.getElementById('resultsContainer').classList.add('hidden');
+        }
+        
+        // ==================== API COMMUNICATION ====================
+        
+        async function searchCity() {
+            const cityInput = document.getElementById('cityInput');
+            const cityName = cityInput.value.trim();
+            
+            // Validation
+            if (!cityName) {
+                showErrorState('Please enter a city name.');
+                return;
+            }
+            
+            if (cityName.length < 2) {
+                showErrorState('City name must be at least 2 characters long.');
+                return;
+            }
+            
+            showLoadingState();
+            
+            try {
+                const response = await fetch(`${API_ENDPOINT}/${encodeURIComponent(cityName)}`);
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    const errorMessage = errorData.message || 'Failed to fetch data';
+                    
+                    if (response.status === 404) {
+                        showErrorState(`City not found: "${cityName}". Please check the spelling and try again.`);
+                    } else if (response.status === 400) {
+                        showErrorState(`Invalid input: ${errorMessage}`);
+                    } else {
+                        showErrorState(`Server error: ${errorMessage}`);
+                    }
+                    return;
+                }
+                
+                const data = await response.json();
+                displayResults(data);
+                showResultsState();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showErrorState(`Network error: Unable to reach the server. Is the Flask backend running on localhost:5000?`);
+            }
+        }
+        
+        // ==================== DISPLAY FUNCTIONS ====================
+        
+        function displayResults(data) {
+            const aqi = data.aqi;
+            const category = getAQICategory(aqi);
+            
+            // Update AQI Value with color
+            const aqiValueEl = document.getElementById('aqiValue');
+            aqiValueEl.textContent = aqi !== null ? aqi : 'N/A';
+            aqiValueEl.style.color = category.hex;
+            
+            // Update Header Background
+            const aqiHeader = document.getElementById('aqiHeader');
+            aqiHeader.style.backgroundColor = category.bg;
+            
+            // Update City Name
+            document.getElementById('cityName').textContent = data.city || 'Unknown City';
+            
+            // Update Health Implications
+            const healthImplEl = document.getElementById('healthImplications');
+            healthImplEl.textContent = data.health_implications || category.label;
+            healthImplEl.style.color = category.hex;
+            
+            // Update Cache Status
+            const cacheStatusEl = document.getElementById('cacheStatus');
+            const badge = document.createElement('span');
+            badge.className = `badge ${data.cached ? 'badge-cached' : 'badge-live'}`;
+            badge.textContent = data.cached ? '⚡ Cached' : '📡 Live Data';
+            cacheStatusEl.innerHTML = '';
+            cacheStatusEl.appendChild(badge);
+            
+            // Update Health Guidance
+            const healthGuidanceEl = document.getElementById('healthGuidance');
+            healthGuidanceEl.innerHTML = `<p>${category.guidance}</p>`;
+            
+            // Display Pollutants
+            displayPollutants(data.details);
+            
+            // Update Timestamp
+            if (data.timestamp) {
+                const date = new Date(data.timestamp);
+                const timeString = date.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                document.getElementById('timestamp').textContent = `Last updated: ${timeString}`;
+            }
+        }
+        
+        function displayPollutants(details) {
+            const container = document.getElementById('pollutantsContainer');
+            const grid = document.getElementById('pollutantsGrid');
+            
+            if (!details || Object.keys(details).length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+            
+            container.classList.remove('hidden');
+            grid.innerHTML = '';
+            
+            for (const [pollutant, value] of Object.entries(details)) {
+                if (value && value !== 'N/A') {
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-50 rounded-lg p-4 text-center hover:bg-gray-100 transition-colors';
+                    card.innerHTML = `
+                        <p class="text-gray-600 text-sm font-medium mb-2">${pollutant}</p>
+                        <p class="text-2xl font-bold text-gray-900">${typeof value === 'object' ? value.v || 'N/A' : value}</p>
+                        <p class="text-xs text-gray-500 mt-1">µg/m³</p>
+                    `;
+                    grid.appendChild(card);
+                }
+            }
+        }
+        
+        // ==================== EVENT LISTENERS ====================
+        
+        document.getElementById('cityInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchCity();
+            }
+        });
+        
+        // Initialize: Show empty state on load
+        showEmptyState();
+        
+        // Focus on input on page load
+        document.getElementById('cityInput').focus();
+    </script>
+</body>
+</html>
