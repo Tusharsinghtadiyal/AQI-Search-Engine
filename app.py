@@ -16,6 +16,8 @@ SETUP INSTRUCTIONS:
 """
 
 from flask import Flask, jsonify, send_from_directory
+from flask_cors import CORS
+
 import requests
 import time
 import os
@@ -35,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 # ==================== FLASK APP ====================
 app = Flask(__name__, static_folder='.', static_url_path='')
+CORS(app)
 
 # ==================== CACHE MANAGEMENT ====================
 cache = {}
@@ -331,3 +334,4 @@ if __name__ == '__main__':
     logger.info("API endpoint: http://localhost:5000/api/aqi/city/<city_name>")
     
     app.run(debug=True, host='localhost', port=5000)
+
