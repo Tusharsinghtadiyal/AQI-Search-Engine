@@ -16,6 +16,7 @@ SETUP INSTRUCTIONS:
 """
 
 from flask import Flask, jsonify, send_from_directory
+from dotenv import load_dotenv
 import requests
 import time
 import os
@@ -35,6 +36,9 @@ logger = logging.getLogger(__name__)
 
 # ==================== FLASK APP ====================
 app = Flask(__name__, static_folder='.', static_url_path='')
+
+# Load local .env for development if present (keeps tokens out of source control)
+load_dotenv()
 
 # ==================== CACHE MANAGEMENT ====================
 cache = {}
