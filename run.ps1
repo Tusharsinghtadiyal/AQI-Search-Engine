@@ -7,7 +7,7 @@
 
 # ==================== CONFIGURATION ====================
 
-$API_TOKEN = "YOUR_TOKEN_HERE"  # <-- INSERT YOUR WAQI API TOKEN HERE
+$API_TOKEN = "e0e9b7cd1cc10f88fcfb31d0054272c2e6109c01"  # <-- INSERT YOUR WAQI API TOKEN HERE
 $PROJECT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # ==================== SETUP ====================
