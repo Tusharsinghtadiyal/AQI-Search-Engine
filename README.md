@@ -1,3 +1,4 @@
+# (merged content)
 # Air Quality Index (AQI) Search Engine
 
 A full-stack, production-ready application for searching real-time Air Quality Index (AQI) data for any city worldwide. Built with Flask backend, in-memory caching, and a responsive HTML5 frontend.
@@ -323,3 +324,6 @@ For issues or questions:
 ---
 
 **Made with ❤️ for clean air and better health.**
+# =======
+# AQI-Search-Engine
+ 
